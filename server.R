@@ -17,8 +17,7 @@ load(file='TSdf.rdata')
 
 #stndf
 popupString <- function(x){
-  #stns <- read.csv("C:/Users/ds10/Dropbox/R/endeavour_dashboard/survey/output.csv")
-  #x <- stns[1,]
+
   x1 <- paste(names(x),':',x,sep='',collapse = '<br/>')
   paste('<p>',x1,'</p>',sep='')
 }
@@ -34,7 +33,7 @@ df}
 #TSdf <- sstdf(stndf$id,stndf$lat,stndf$lon)
 #save(TSdf,file='TSdf.rdata')
 #load('TSdf.rdata')
-
+shinybootstrap2::withBootstrap2({
 shinyServer(function(input, output,session) {
 
   stndf <- rbind.data.frame(
@@ -57,11 +56,10 @@ shinyServer(function(input, output,session) {
 
   observe({
     
-    print('fire obs stndf')
+
     input$slt_date
     
-    #if(is.null(stndf))
-    #  return(NULL)
+
     isolate({
       str(TSdf)
     map$addMarker(lat=stndf$lat,
@@ -137,9 +135,17 @@ shinyServer(function(input, output,session) {
     if(is.null(input$slt_date))
       return(NULL)
       
-    map$clearWMS()      
+    map$clearWMS()     
+    
+    print(paste(sst.wms[[1]]@url,'scaleRange=270,310&',sep=''))
     t<-formattedDateString(sst.wms[[1]],lyr = 'analysed_sst',dates = input$slt_date)
-    map$addWMS(url=sst.wms[[1]]@url,layer='analysed_sst',time=t,scaleRange='270,310',nBands=255)
+#      map$addWMS(url=paste(sst.wms[[1]]@url,'colorscalerange=270,310&transparent=true&',sep=''),
+    map$addWMS(url=sst.wms[[1]]@url,
+               options=list(layers='analysed_sst',time=t,
+                            nBands=255,
+                            transparent=T,
+                            format='image/png',
+                            colorscalerange='270,310'))
       
   
     
@@ -269,6 +275,6 @@ shinyServer(function(input, output,session) {
   updateDateInput(session,'slt_date',value = '2014-12-09')
   
 })
-
+})
 
 

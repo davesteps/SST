@@ -10,7 +10,7 @@ library(shiny)
 require(shinyBS)
 require(leaflet)
 
-
+shinybootstrap2::withBootstrap2({
 shinyUI(navbarPage(title="Global Sea Surface Temperature 1985-2014",id = 'main',
                    inverse=T,
                    collapsable = T,
@@ -66,8 +66,16 @@ shinyUI(navbarPage(title="Global Sea Surface Temperature 1985-2014",id = 'main',
                                               bsActionButton('btn_ext',label = icon('download'),style = 'danger')),
                                               div(class='span6',bsActionButton('btn_clr',label = icon('refresh'),style = 'danger')
                                               ))
+
                                               
                                               ),
+                                          absolutePanel(bottom = 20,
+                                                        right = 10,
+                                                        draggable = F,
+                                                        width='auto',
+                                                        height='auto',
+                                                        h4(a('@davesteps',href='https://twitter.com/davesteps'))
+                                          ),
                                           uiOutput('plot_UI')
 
                                 
@@ -80,3 +88,4 @@ shinyUI(navbarPage(title="Global Sea Surface Temperature 1985-2014",id = 'main',
                    )
                                                    
 ))
+})
