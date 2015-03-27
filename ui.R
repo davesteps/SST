@@ -22,7 +22,7 @@ shinyUI(navbarPage(title="Global Sea Surface Temperature 1985-2014",id = 'main',
                                 ),
                                 leafletMap( width="100%",height='100%',
                                             "map",
-                                            initialTileLayerAttribution = HTML('OSTIA SST data from <a href="http://www.myocean.eu">MyOcean</a>'),
+                                            # initialTileLayerAttribution = HTML('OSTIA SST data from <a href="http://www.myocean.eu">MyOcean</a>'),
                                             options=list(
                                               center = c(30, -35),
                                              zoom = 3)

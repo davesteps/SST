@@ -1,5 +1,5 @@
 
-require(ggvis)
+require("ggvis")
 require(lubridate)
 library(leaflet)
 library(shiny)
@@ -15,12 +15,14 @@ load(file='sst.rdata')
 load(file='TSdf.rdata')
 
 
+# Sys.setenv(http_proxy='http://148.252.96.126:3128')
+# Sys.setenv(https_proxy='http://148.252.96.126:3128')
+
+
 #stndf
 popupString <- function(x){
-
   x1 <- paste(names(x),':',x,sep='',collapse = '<br/>')
-  paste('<p>',x1,'</p>',sep='')
-}
+  paste('<p>',x1,'</p>',sep='')}
 
 sstdf <- function(id,lat,lon){
 sst1.df<- TDSqueryAll(sst.wms[[1]],'analysed_sst',lat,lon,'month')
