@@ -4,7 +4,7 @@ input[type="number"] {
 
 div.outer {
   position: fixed;
-  top: 41px;
+  top: 50px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -39,7 +39,7 @@ h1, h2, h3, h4 { font-weight: 400; }
   cursor: move;
   border-radius: 10px;
   /* Fade out while not hovering */
-  opacity: 0.2;
+  opacity: 0.4;
   zoom: 0.9;
   transition: opacity 100ms 300ms;
 }

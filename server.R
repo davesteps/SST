@@ -1,85 +1,103 @@
-
 require("ggvis")
+require('opendapR')
 require(lubridate)
-library(leaflet)
-library(shiny)
-require(shinyBS)
-library(rWMS)
-require(plyr)
 require(dplyr)
 library(ggplot2)
+require(ncdf)
+
+# 
+# s1 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-RAN-OBS-SST-MON')
+# s2 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-NRT-OBS-SST-MON-V2')
+# save(s1,file='s1.rdata')
+# save(s2,file='s2.rdata')
+load('s1.rdata')
+load('s2.rdata')
+v1 <- s1$var[["analysed_sst"]]
+v2 <- s2$var[["analysed_sst"]]
 
 
-
-load(file='sst.rdata')
-load(file='TSdf.rdata')
-
-
-# Sys.setenv(http_proxy='http://148.252.96.126:3128')
-# Sys.setenv(https_proxy='http://148.252.96.126:3128')
-
-
-#stndf
 popupString <- function(x){
   x1 <- paste(names(x),':',x,sep='',collapse = '<br/>')
   paste('<p>',x1,'</p>',sep='')}
 
-sstdf <- function(id,lat,lon){
-sst1.df<- TDSqueryAll(sst.wms[[1]],'analysed_sst',lat,lon,'month')
-sst2.df<- TDSqueryAll(sst.wms[[2]],'analysed_sst',lat,lon,'month')
-df<-rbind(sst1.df,sst2.df)
-df$celcius <- df$values-272.15
-df$id <- id
-df}
+stndf <- data.frame(id=1:3,lat=c(54.572,25.069,39.504),lon=c(-33.926,-42.2,5.977))
 
-#TSdf <- sstdf(stndf$id,stndf$lat,stndf$lon)
-#save(TSdf,file='TSdf.rdata')
-#load('TSdf.rdata')
-shinybootstrap2::withBootstrap2({
-shinyServer(function(input, output,session) {
+qry.sst <- function(r){
+  id <- as.numeric(r[1])#$id
+  y <- as.numeric(r[2])#$lat
+  x <- as.numeric(r[3])+180#$lon+180
 
-  stndf <- rbind.data.frame(
-    c(1, 54.572, -33.926),
-    c(2, 13.069, -39.023),
-    c(3, 39.504, 5.977))
+  q1 <- buildQuery(var = v1,xr = x,yr = y,
+                   tr = as.Date(c('1985-01-15','2006-12-15'))) %>% 
+    getQuery(s1,v1,.)
+  q2 <- buildQuery(var = v2,xr = x,yr = y,
+                   tr = as.Date(c('2007-01-01',as.character(Sys.Date())))) %>% 
+    getQuery(s2,v2,.)
+  df <- rbind(q1,q2)
+  df$time <- as.Date(as.character(df$time))
+  df$id <- id
+  df$value <- df$value-272.15
+  df$lon <- df$lon-180
+  names(df) <- c('x','y','date','celcius','id')
+  df
+}
+
+# "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-NRT-OBS-SST-V2?"
+# "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-RAN-OBS-ANOM?"
+# TSdf <- apply(stndf,1,qry.sst) %>% do.call(rbind,.)
+# 
+# save(TSdf,file='TSdf.rdata')
+load('TSdf.rdata')
+
+function(input, output,session) {
   
-  names(stndf)<-c('id','lat','lon')
+  stndf <- stndf
   makeReactiveBinding('stndf')
   
   TSdf <- TSdf
   makeReactiveBinding('TSdf')
   
-  map <- createLeafletMap(session, 'map')
-  
-  #createAlert(session,inputId = "a1", alertId="aa", 
-  #            title = "Click on map to add marker", 
-  #            message='',
-  #            type = "info")
-
-  observe({
+  output$map <- renderLeaflet({
     
-
-    input$slt_date
+    isolate(df <- stndf)
     
-
-    isolate({
-      str(TSdf)
-    map$addMarker(lat=stndf$lat,
-                  lng=stndf$lon,
-                  layerId=(1:nrow(stndf)),
-                  options=list('clickable'=T),
-                  popup=as.character(apply(stndf,1,popupString)))
-    })
+    leaflet() %>% addTiles() %>%
+          addMarkers(lat=df$lat,
+                    lng=df$lon,
+                    layerId=(1:nrow(df)),
+                    options=list('clickable'=T),
+                    popup=as.character(apply(df,1,popupString)))%>% 
+      setView(lng = -70,lat =  30, zoom = 3)
+    
   })
   
-  
-  
-  
-  observe({
+#   createAlert(session,anchorId = "a1", alertId="aa", 
+#              title = "Click on map to add marker", 
+#              content ='',
+#              style = "info")
 
-    if(is.null(input$map_click))
-      return(NULL)
-    
+#   observe({
+#     
+# 
+#     input$slt_date
+#     
+#     isolate({
+#       str(TSdf)
+#     
+#       leafletProxy('map') %>%
+#         addMarkers(lat=stndf$lat,
+#                   lng=stndf$lon,
+#                   layerId=(1:nrow(stndf)),
+#                   options=list('clickable'=T),
+#                   popup=as.character(apply(stndf,1,popupString)))
+#     })
+#   })
+#   
+  
+  
+  
+  observeEvent(input$map_click,{
+
     closeAlert(session, 'aa')
     
     isolate({
@@ -93,89 +111,90 @@ shinyServer(function(input, output,session) {
         if(nrow(stndf)<5){
           stndf <<- rbind(stndf,c(nrow(stndf)+1,lat,lon))
         } else {
-          createAlert(session,inputId = "a1", alertId="aa", 
+          createAlert(session,anchorId = "a1", alertId="aa", 
                       title = "Maximum 5 markers allowed", 
-                      message='',
-                      type = "danger") 
+                      content='',
+                      style = "danger") 
         } 
       }
       
-      map$addMarker(lat=stndf$lat,
-                    lng=stndf$lon,
-                    layerId=(1:nrow(stndf)),
-                    options=list('clickable'=T),
-                    popup=as.character(apply(stndf,1,popupString)))
+      leafletProxy('map') %>%
+        clearMarkers() %>%
+        addMarkers(lat=stndf$lat,
+                   lng=stndf$lon,
+                   layerId=(1:nrow(stndf)),
+                   options=list('clickable'=T),
+                   popup=as.character(apply(stndf,1,popupString)))
       
       
     })
   })
 
 
-  observe({
-    
-    if(input$btn_ext==0)
-      return(NULL)
-    
-    
+  observeEvent(input$btn_ext,{
+    str(stndf)
     closeAlert(session, 'aa')
-    updateProgressBar(session,"TSpb", value=0,visible=T, animate=TRUE)
-    isolate(TSdf <<- ddply(stndf,'id',.fun=extTS))
-    updateProgressBar(session,"TSpb",visible=F)                    
+    withProgress(message = 'Extracting...',
+                 detail = 'takes a few seconds...', value = 0, {
+    newTSdf <- list()
+    for(r in 1:nrow(stndf)){
+      incProgress(1/nrow(stndf))
+      newTSdf[r] <- qry.sst(stndf[r,])
+      }
+    })
     
-    
+    str(newTSdf)
+    TSdf <<- do.call(rbind,newTSdf)
+    # updateProgressBar(session,"TSpb", value=0,visible=T, animate=TRUE)
+    # isolate(TSdf <<- ddply(stndf,'id',.fun=extTS))
+    # updateProgressBar(session,"TSpb",visible=F)                    
     
   })
   
-    extTS <- function(x){
-      updateProgressBar(session,"TSpb", value=(x$id/nrow(stndf)*100))        
-      sstdf(x$id,x$lat,x$lon)}
+
+#     extTS <- function(x){
+#       # updateProgressBar(session,"TSpb", value=(x$id/nrow(stndf)*100))        
+#       sstdf(x$id,x$lat,x$lon)}
     
 
   
-  observe({
+  observeEvent(input$slt_date,{
     
-    if(is.null(input$slt_date))
-      return(NULL)
-      
-    map$clearWMS()     
-    
-    print(paste(sst.wms[[1]]@url,'scaleRange=270,310&',sep=''))
-    t<-formattedDateString(sst.wms[[1]],lyr = 'analysed_sst',dates = input$slt_date)
-#      map$addWMS(url=paste(sst.wms[[1]]@url,'colorscalerange=270,310&transparent=true&',sep=''),
-    map$addWMS(url=sst.wms[[1]]@url,
-               options=list(layers='analysed_sst',time=t,
-                            nBands=255,
-                            transparent=T,
-                            format='image/png',
-                            colorscalerange='270,310'))
-      
-  
-    
+    leafletProxy('map') %>%
+      # removeTiles(layerId = 'WMS') %>%
+      addWMSTiles(layerId = 'sst',layers = 'analysed_sst',
+                  baseUrl = "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-NRT-OBS-SST-V2?",
+                  attribution = 'OSTIA SST (C) Crown Copyright 2011, published by the Met Office.',
+                  options=WMSTileOptions(
+                                         time=paste(input$slt_date,'T12:00:00.000Z',sep=''),
+                                         nBands=255,
+                                         transparent=T,
+                                         format='image/png',
+                                         colorscalerange='270,310'))
+
   })
   
-  observe({
-    
-    if(input$btn_clr==0)
-      return(NULL)
+  observeEvent(input$btn_clr,{
     
     isolate({
       stndf <<- NULL
       TSdf <<- NULL
     })
     
-    closeAlert(session, 'aa')
-    map$clearMarkers()
+    # closeAlert(session, 'aa')
+    leafletProxy('map') %>%
+      clearMarkers()
     
   })
   
   
   reactive({
     
-    
     pt <- input$slt_ptype
 
     print('GVIS')
-    
+    str(TSdf)
+    str(pt)
     
     if(is.null(TSdf)|is.null(pt)){
       p <- data.frame(x=1,y=1) %>%
@@ -212,14 +231,13 @@ shinyServer(function(input, output,session) {
 
     }
     
-    p %>% add_tooltip(tooltip, "hover")
-    
-  }) %>% bind_shiny("P")
+     p %>% add_tooltip(tooltip, "hover")
+  }) %>% bind_shiny(plot_id = "P")
   
   tooltip <- function(x) {
     ggvisclick <<- x
     if(is.null(x)) return(NULL)
-    paste0(names(x), ": ", format(x), collapse = "<br />")
+    paste0(names(x), ": ", format(x), collapse = "<br/>")
   }
   
   output$plot_type <- renderUI({
@@ -238,12 +256,12 @@ shinyServer(function(input, output,session) {
       return(NULL)
     
     absolutePanel(id = "controls",
-                  top = 100,
+                  top = 110,
                   left = 10,
                   draggable = F,
                   width='auto',
                   height='auto',
-                  ggvisOutput("P"))#plotOutput('TS_plot',width=600,height = 450))
+                  ggvisOutput(plot_id = "P"))#plotOutput('TS_plot',width=600,height = 450))
     
     
     
@@ -252,16 +270,20 @@ shinyServer(function(input, output,session) {
   ggvisclick <- NULL
   makeReactiveBinding('ggvisclick')
   
-  observe({
+  observeEvent(ggvisclick,{
     
     print(ggvisclick$id)
     id<-as.numeric(ggvisclick$id)
     #map$clearPopups()
   
+    leafletProxy('map') %>%
+      setView(lat=stndf$lat[id]-10,3,#isolate(input$map_zoom),
+              lng=stndf$lon[id]-15) %>%
+      addCircleMarkers(lat=stndf$lat[id],
+                       lng=stndf$lon[id],layerId = 'h',
+                       stroke = F,color = 'black')
     
-    map$setView(lat=stndf$lat[id],3,#isolate(input$map_zoom),
-                lng=stndf$lon[id]-15)
-    map$markerPopup(id)  
+    # map$markerPopup(id)  
     
   })
   
@@ -274,9 +296,7 @@ shinyServer(function(input, output,session) {
     
   })
   
-  updateDateInput(session,'slt_date',value = '2014-12-09')
+  # updateDateInput(session,'slt_date',value = Sys.Date()-1)
   
-})
-})
-
-
+}
+# install.packages('dplyr')
