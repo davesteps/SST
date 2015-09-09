@@ -6,12 +6,12 @@ library(ggplot2)
 require(ncdf)
 
 # 
-# s1 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-RAN-OBS-SST-MON')
-# s2 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-NRT-OBS-SST-MON-V2')
+s1 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-RAN-OBS-SST-MON')
+s2 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-NRT-OBS-SST-MON-V2')
 # save(s1,file='s1.rdata')
 # save(s2,file='s2.rdata')
-load('s1.rdata')
-load('s2.rdata')
+# load('s1.rdata')
+# load('s2.rdata')
 v1 <- s1$var[["analysed_sst"]]
 v2 <- s2$var[["analysed_sst"]]
 
@@ -23,29 +23,33 @@ popupString <- function(x){
 stndf <- data.frame(id=1:3,lat=c(54.572,25.069,39.504),lon=c(-33.926,-42.2,5.977))
 
 qry.sst <- function(r){
+  print(1)
   id <- as.numeric(r[1])#$id
   y <- as.numeric(r[2])#$lat
   x <- as.numeric(r[3])+180#$lon+180
-
+  print(2)
   q1 <- buildQuery(var = v1,xr = x,yr = y,
                    tr = as.Date(c('1985-01-15','2006-12-15'))) %>% 
     getQuery(s1,v1,.)
   q2 <- buildQuery(var = v2,xr = x,yr = y,
                    tr = as.Date(c('2007-01-01',as.character(Sys.Date())))) %>% 
     getQuery(s2,v2,.)
+  print(3)
   df <- rbind(q1,q2)
   df$time <- as.Date(as.character(df$time))
   df$id <- id
   df$value <- df$value-272.15
   df$lon <- df$lon-180
+  print(4)
+  str(df)
   names(df) <- c('x','y','date','celcius','id')
+  print(5)
   df
 }
 
 # "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-NRT-OBS-SST-V2?"
 # "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-RAN-OBS-ANOM?"
-# TSdf <- apply(stndf,1,qry.sst) %>% do.call(rbind,.)
-# 
+# TSdf <- lapply(1:nrow(stndf), function(s) qry.sst(stndf[s,])) %>% do.call(rbind,TSdf)
 # save(TSdf,file='TSdf.rdata')
 load('TSdf.rdata')
 
@@ -62,42 +66,42 @@ function(input, output,session) {
     isolate(df <- stndf)
     
     leaflet() %>% addTiles() %>%
-          addMarkers(lat=df$lat,
-                    lng=df$lon,
-                    layerId=(1:nrow(df)),
-                    options=list('clickable'=T),
-                    popup=as.character(apply(df,1,popupString)))%>% 
+      addMarkers(lat=df$lat,
+                 lng=df$lon,
+                 layerId=(1:nrow(df)),
+                 options=list('clickable'=T),
+                 popup=as.character(apply(df,1,popupString)))%>% 
       setView(lng = -70,lat =  30, zoom = 3)
     
   })
   
-#   createAlert(session,anchorId = "a1", alertId="aa", 
-#              title = "Click on map to add marker", 
-#              content ='',
-#              style = "info")
-
-#   observe({
-#     
-# 
-#     input$slt_date
-#     
-#     isolate({
-#       str(TSdf)
-#     
-#       leafletProxy('map') %>%
-#         addMarkers(lat=stndf$lat,
-#                   lng=stndf$lon,
-#                   layerId=(1:nrow(stndf)),
-#                   options=list('clickable'=T),
-#                   popup=as.character(apply(stndf,1,popupString)))
-#     })
-#   })
-#   
+  #   createAlert(session,anchorId = "a1", alertId="aa", 
+  #              title = "Click on map to add marker", 
+  #              content ='',
+  #              style = "info")
+  
+  #   observe({
+  #     
+  # 
+  #     input$slt_date
+  #     
+  #     isolate({
+  #       str(TSdf)
+  #     
+  #       leafletProxy('map') %>%
+  #         addMarkers(lat=stndf$lat,
+  #                   lng=stndf$lon,
+  #                   layerId=(1:nrow(stndf)),
+  #                   options=list('clickable'=T),
+  #                   popup=as.character(apply(stndf,1,popupString)))
+  #     })
+  #   })
+  #   
   
   
   
   observeEvent(input$map_click,{
-
+    
     closeAlert(session, 'aa')
     
     isolate({
@@ -129,34 +133,24 @@ function(input, output,session) {
       
     })
   })
-
-
+  
+  
   observeEvent(input$btn_ext,{
-    str(stndf)
+    
     closeAlert(session, 'aa')
     withProgress(message = 'Extracting...',
                  detail = 'takes a few seconds...', value = 0, {
-    newTSdf <- list()
-    for(r in 1:nrow(stndf)){
-      incProgress(1/nrow(stndf))
-      newTSdf[r] <- qry.sst(stndf[r,])
-      }
-    })
-    
-    str(newTSdf)
-    TSdf <<- do.call(rbind,newTSdf)
-    # updateProgressBar(session,"TSpb", value=0,visible=T, animate=TRUE)
-    # isolate(TSdf <<- ddply(stndf,'id',.fun=extTS))
-    # updateProgressBar(session,"TSpb",visible=F)                    
-    
+                   TSdf <- lapply(1:nrow(stndf), extTS ) %>% do.call(rbind,.)
+                 })
+    TSdf <<- TSdf
   })
   
-
-#     extTS <- function(x){
-#       # updateProgressBar(session,"TSpb", value=(x$id/nrow(stndf)*100))        
-#       sstdf(x$id,x$lat,x$lon)}
-    
-
+  
+  extTS <- function(i){
+    incProgress(i/nrow(stndf))
+    qry.sst(stndf[i,])}
+  
+  
   
   observeEvent(input$slt_date,{
     
@@ -164,14 +158,17 @@ function(input, output,session) {
       # removeTiles(layerId = 'WMS') %>%
       addWMSTiles(layerId = 'sst',layers = 'analysed_sst',
                   baseUrl = "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-NRT-OBS-SST-V2?",
-                  attribution = 'OSTIA SST (C) Crown Copyright 2011, published by the Met Office.',
+                  attribution = HTML(paste(a('OSTIA SST',target='_blank',
+                                             href='http://data.ncof.co.uk/thredds/catalog.html'),
+                                           icon('copyright'),
+                                           'Crown Copyright 2011, published by the Met Office.')),
                   options=WMSTileOptions(
-                                         time=paste(input$slt_date,'T12:00:00.000Z',sep=''),
-                                         nBands=255,
-                                         transparent=T,
-                                         format='image/png',
-                                         colorscalerange='270,310'))
-
+                    time=paste(input$slt_date,'T12:00:00.000Z',sep=''),
+                    nBands=255,
+                    transparent=T,
+                    format='image/png',
+                    colorscalerange='272,310'))
+    
   })
   
   observeEvent(input$btn_clr,{
@@ -191,66 +188,63 @@ function(input, output,session) {
   reactive({
     
     pt <- input$slt_ptype
-
+    
     print('GVIS')
     str(TSdf)
     str(pt)
     
     if(is.null(TSdf)|is.null(pt)){
       p <- data.frame(x=1,y=1) %>%
-      ggvis(~x,~y) %>%
-      layer_points()
+        ggvis(~x,~y) %>%
+        layer_points()
     } else {
-             
+      
       
       TSdf$id <- factor(TSdf$id)
-    if(pt=='Timeseries'){
+      if(pt=='Timeseries'){
+        
+        p = TSdf %>% group_by(id) %>%
+          ggvis(~date,~celcius,stroke=~id) %>%
+          layer_lines() %>%
+          layer_model_predictions(model='lm')
+      }
       
-      p = TSdf %>% group_by(id) %>%
-        ggvis(~date,~celcius,stroke=~id) %>%
-        layer_lines() %>%
-        layer_model_predictions(model='lm')
-    }
-
-    if(pt=='Distribution'){
-      #TSdf$month <- month(TSdf$date)
-      p = TSdf %>% group_by(id) %>%
-        ggvis(~celcius,fill=~id) %>%
-        layer_densities() 
-    
-    }
-    
-    if(pt=='Monthly means'){
-      TSdf$month <- month(TSdf$date)
-      p = TSdf %>% group_by(month,id) %>%
-        summarise(celcius=mean(celcius))%>%
-      ggvis(~month,~celcius) %>%
-        layer_points(fill=~id)
+      if(pt=='Density'){
+        #TSdf$month <- month(TSdf$date)
+        p = TSdf %>% group_by(id) %>%
+          ggvis(~celcius,fill=~id) %>%
+          layer_densities() 
+        
+      }
       
-    }    
-
+      if(pt=='Monthly means'){
+        TSdf$month <- month(TSdf$date)
+        p = TSdf %>% group_by(month,id) %>%
+          summarise(celcius=mean(celcius))%>%
+          ggvis(~month,~celcius) %>%
+          layer_points(fill=~id)
+      }    
+      
     }
     
-     p %>% add_tooltip(tooltip, "hover")
+    p %>% add_tooltip(tooltip, "hover")
   }) %>% bind_shiny(plot_id = "P")
   
   tooltip <- function(x) {
     ggvisclick <<- x
     if(is.null(x)) return(NULL)
-    paste0(names(x), ": ", format(x), collapse = "<br/>")
-  }
+    paste0(names(x), ": ", format(x), collapse = "<br/>")}
   
   output$plot_type <- renderUI({
-  
+    
     if(is.null(TSdf))
       return(NULL)
     
-    selectInput('slt_ptype',label = NULL,choices = c('Timeseries','Distribution','Monthly means'),selectize = F)
+    selectInput('slt_ptype',label = NULL,choices = c('Timeseries','Density','Monthly means'),selectize = F)
     
   })
   
   output$plot_UI <- renderUI({
-    
     
     if(is.null(TSdf))
       return(NULL)
@@ -263,8 +257,6 @@ function(input, output,session) {
                   height='auto',
                   ggvisOutput(plot_id = "P"))#plotOutput('TS_plot',width=600,height = 450))
     
-    
-    
   })
   
   ggvisclick <- NULL
@@ -275,11 +267,11 @@ function(input, output,session) {
     print(ggvisclick$id)
     id<-as.numeric(ggvisclick$id)
     #map$clearPopups()
-  
+    
     leafletProxy('map') %>%
       setView(lat=stndf$lat[id]-10,3,#isolate(input$map_zoom),
               lng=stndf$lon[id]-15) %>%
-      addCircleMarkers(lat=stndf$lat[id],
+      addCircleMarkers(lat=stndf$lat[id],fillOpacity = 0.5,
                        lng=stndf$lon[id],layerId = 'h',
                        stroke = F,color = 'black')
     
