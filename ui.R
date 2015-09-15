@@ -8,8 +8,8 @@
 #library(shinyIncubator)
 
 
-navbarPage(title="Global Sea Surface Temperature 1985-2015",id = 'main',#theme = 'flatly',
-           inverse=T,
+navbarPage(title="Global Sea Surface Temperature 1985-2015",id = 'main',theme = shinytheme("united"),
+           # inverse=T,
            collapsible = T,
            tabPanel(title = icon('globe'),
                     div(class="outer",

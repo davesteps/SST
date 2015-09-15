@@ -5,6 +5,8 @@ require(dplyr)
 library(ggplot2)
 require(ncdf)
 
+
+
 # 
 s1 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-RAN-OBS-SST-MON')
 s2 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-NRT-OBS-SST-MON-V2')
