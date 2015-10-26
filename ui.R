@@ -8,7 +8,9 @@
 #library(shinyIncubator)
 
 
-navbarPage(title="Global Sea Surface Temperature 1985-2015",id = 'main',theme = shinytheme("united"),
+navbarPage(title="Global Sea Surface Temperature 1985-2015",
+           id = 'main',
+           theme = shinytheme("cosmo"),
            # inverse=T,
            collapsible = T,
            tabPanel(title = icon('globe'),
@@ -41,7 +43,7 @@ navbarPage(title="Global Sea Surface Temperature 1985-2015",id = 'main',theme = 
                                       uiOutput('plot_type'),
                                       # bsProgressBar("TSpb", visible=FALSE, striped=TRUE),
                                       bsTooltip('slt_date','Date of mapped layer'),
-                                      bsTooltip('btn_ext','Plot SST data at markers'),
+                                      bsTooltip('btn_ext','Extract SST data at markers'),
                                       bsTooltip('btn_clr','Clear Markers'),
                                       bsTooltip('slt_ptype','Change plot type'),
                                       bsAlert('a1')

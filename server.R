@@ -6,16 +6,8 @@ library(ggplot2)
 require(ncdf)
 
 
-
+#Sys.setenv(http_proxy='http://148.252.96.126:3128')
 # 
-s1 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-RAN-OBS-SST-MON')
-s2 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-NRT-OBS-SST-MON-V2')
-# save(s1,file='s1.rdata')
-# save(s2,file='s2.rdata')
-# load('s1.rdata')
-# load('s2.rdata')
-v1 <- s1$var[["analysed_sst"]]
-v2 <- s2$var[["analysed_sst"]]
 
 
 popupString <- function(x){
@@ -25,10 +17,22 @@ popupString <- function(x){
 stndf <- data.frame(id=1:3,lat=c(54.572,25.069,39.504),lon=c(-33.926,-42.2,5.977))
 
 qry.sst <- function(r){
+  
+  s1 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-RAN-OBS-SST-MON')
+  s2 <- open.ncdf('http://data.ncof.co.uk/thredds/dodsC/METOFFICE-GLO-SST-L4-NRT-OBS-SST-MON-V2')
+  # save(s1,file='s1.rdata')
+  # save(s2,file='s2.rdata')
+  # load('s1.rdata')
+  # load('s2.rdata')
+  v1 <- s1$var[["analysed_sst"]]
+  v2 <- s2$var[["analysed_sst"]]
+  
   print(1)
   id <- as.numeric(r[1])#$id
   y <- as.numeric(r[2])#$lat
-  x <- as.numeric(r[3])+180#$lon+180
+  x <- as.numeric(r[3])#$lon+180
+  if(x<0){x<-360+x}
+  
   print(2)
   q1 <- buildQuery(var = v1,xr = x,yr = y,
                    tr = as.Date(c('1985-01-15','2006-12-15'))) %>% 
@@ -41,18 +45,20 @@ qry.sst <- function(r){
   df$time <- as.Date(as.character(df$time))
   df$id <- id
   df$value <- df$value-272.15
-  df$lon <- df$lon-180
+  # df$lon <- df$lon-180
   print(4)
   str(df)
-  names(df) <- c('x','y','date','celcius','id')
+  names(df) <- c('x','y','date','celsius','id')
   print(5)
   df
 }
-
+# 
 # "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-NRT-OBS-SST-V2?"
 # "http://data.ncof.co.uk/thredds/wms/METOFFICE-GLO-SST-L4-RAN-OBS-ANOM?"
-# TSdf <- lapply(1:nrow(stndf), function(s) qry.sst(stndf[s,])) %>% do.call(rbind,TSdf)
-# save(TSdf,file='TSdf.rdata')
+# str(TSdf)
+# TSdf <- lapply(1:nrow(stndf), function(s) qry.sst(stndf[s,]))
+# TSdf <- do.call(rbind,TSdf)
+#  save(TSdf,file='TSdf.rdata')
 load('TSdf.rdata')
 
 function(input, output,session) {
@@ -206,15 +212,15 @@ function(input, output,session) {
       if(pt=='Timeseries'){
         
         p = TSdf %>% group_by(id) %>%
-          ggvis(~date,~celcius,stroke=~id) %>%
+          ggvis(~date,~celsius,stroke=~id) %>%
           layer_lines() %>%
           layer_model_predictions(model='lm')
       }
       
-      if(pt=='Density'){
+      if(pt=='Kernel Density'){
         #TSdf$month <- month(TSdf$date)
         p = TSdf %>% group_by(id) %>%
-          ggvis(~celcius,fill=~id) %>%
+          ggvis(~celsius,fill=~id) %>%
           layer_densities() 
         
       }
@@ -222,8 +228,8 @@ function(input, output,session) {
       if(pt=='Monthly means'){
         TSdf$month <- month(TSdf$date)
         p = TSdf %>% group_by(month,id) %>%
-          summarise(celcius=mean(celcius))%>%
-          ggvis(~month,~celcius) %>%
+          summarise(celsius=mean(celsius))%>%
+          ggvis(~month,~celsius) %>%
           layer_points(fill=~id)
       }    
       
@@ -242,7 +248,7 @@ function(input, output,session) {
     if(is.null(TSdf))
       return(NULL)
     
-    selectInput('slt_ptype',label = NULL,choices = c('Timeseries','Density','Monthly means'),selectize = F)
+    selectInput('slt_ptype',label = NULL,choices = c('Timeseries','Kernel Density','Monthly means'),selectize = F)
     
   })
   
@@ -252,7 +258,7 @@ function(input, output,session) {
       return(NULL)
     
     absolutePanel(id = "controls",
-                  top = 110,
+                  top = 140,
                   left = 10,
                   draggable = F,
                   width='auto',
