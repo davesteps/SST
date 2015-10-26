@@ -154,7 +154,7 @@ function(input, output,session) {
   })
   
   
-  extTS <- function(){
+  extTS <- function(i){
     incProgress(1/nrow(stndf))
     qry.sst(stndf[i,])}
   
