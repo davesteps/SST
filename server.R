@@ -225,7 +225,7 @@ function(input, output,session) {
         
       }
       
-      if(pt=='Monthly means'){
+      if(pt=='Monthly Means'){
         TSdf$month <- month(TSdf$date)
         p = TSdf %>% group_by(month,id) %>%
           summarise(celsius=mean(celsius))%>%
@@ -248,7 +248,7 @@ function(input, output,session) {
     if(is.null(TSdf))
       return(NULL)
     
-    selectInput('slt_ptype',label = NULL,choices = c('Timeseries','Kernel Density','Monthly means'),selectize = F)
+    selectInput('slt_ptype',label = NULL,choices = c('Timeseries','Kernel Density','Monthly Means'),selectize = F)
     
   })
   
@@ -295,6 +295,9 @@ function(input, output,session) {
     TSdf
     
   })
+  
+  
+
   
   # updateDateInput(session,'slt_date',value = Sys.Date()-1)
   
